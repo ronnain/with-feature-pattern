@@ -11,9 +11,20 @@ import {
 import { Book, FeatureOutput, OneParams, StoreInput } from './shared';
 import { computed, Signal } from '@angular/core';
 
-function withFeatureFactory<Feature extends (data: any) => SignalStoreFeature>(
-  feature: Feature
-) {
+export function withFeatureFactory<
+  Feature extends (data: any) => SignalStoreFeature
+>(feature: Feature) {
+  if (feature.length > 1) {
+    throw new Error(
+      `withFeatureFactory only supports functions with exactly one parameter. Got ${feature.length}.\n` +
+        `If you need to pass multiple values, wrap them in a single object:\n\n` +
+        `// ✅ Good:\n` +
+        `withFeatureFactory(({ signalA, signalB }) => ...)\n\n` +
+        `// ❌ Not allowed:\n` +
+        `withFeatureFactory((signalA, signalB) => ...)`
+    );
+  }
+
   return <
     Input extends SignalStoreFeatureResult,
     Store extends StoreInput<Input>

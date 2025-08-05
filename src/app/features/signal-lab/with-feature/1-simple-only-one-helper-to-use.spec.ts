@@ -1,10 +1,21 @@
-import { patchState, signalStore, withHooks } from '@ngrx/signals';
+import {
+  patchState,
+  signalStore,
+  signalStoreFeature,
+  withComputed,
+  withHooks,
+  withMethods,
+  withState,
+} from '@ngrx/signals';
 import { Book } from './shared';
 import { setAllEntities, withEntities } from '@ngrx/signals/entities';
-import { Signal } from '@angular/core';
+import { computed, Signal } from '@angular/core';
 import { expectTypeOf } from 'vitest';
 import { TestBed } from '@angular/core/testing';
-import { withBooksFilter1 } from './1-simple-only-one-helper-to-use';
+import {
+  withBooksFilter1,
+  withFeatureFactory,
+} from './1-simple-only-one-helper-to-use';
 
 describe('withBooksFilter1', () => {
   it('should filter books by query', () => {
@@ -51,5 +62,31 @@ describe('withBooksFilter1', () => {
     expectTypeOf(store.filteredBooks).toEqualTypeOf<Signal<Book[]>>();
     expectTypeOf(store.setQuery).toEqualTypeOf<(query: string) => void>();
     expectTypeOf(store.entities).toEqualTypeOf<Signal<Book[]>>();
+  });
+
+  it('should not allow to pass several parameters to the custom feature', () => {
+    let error = undefined;
+    try {
+      const withBooksFilter = withFeatureFactory(
+        //@ts-expect-error withFeatureFactory accepts a function with only one parameter
+        (books: Signal<Book[]>, arg2: boolean) =>
+          signalStoreFeature(
+            withState({ query: '' }),
+            withComputed((store) => ({
+              filteredBooks: computed(() =>
+                books().filter((b) => b.name.includes(store.query()))
+              ),
+            })),
+            withMethods((store) => ({
+              setQuery(query: string): void {
+                patchState(store, { query });
+              },
+            }))
+          )
+      );
+    } catch (featureError) {
+      error = featureError;
+    }
+    expect(error).toBeDefined();
   });
 });
