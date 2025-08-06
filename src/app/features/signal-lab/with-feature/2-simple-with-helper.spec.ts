@@ -1,6 +1,9 @@
 import { patchState, signalStore, withHooks } from '@ngrx/signals';
 import { Book } from './shared';
-import { withBooksFilter2 } from './2-simple-with-helper';
+import {
+  withBooksFilter2,
+  withBooksFilterGeneric,
+} from './2-simple-with-helper';
 import { setAllEntities, withEntities } from '@ngrx/signals/entities';
 import { Signal } from '@angular/core';
 import { expectTypeOf } from 'vitest';
@@ -48,6 +51,21 @@ describe('withBooksFilter2', () => {
 
     const store = new BooksStore();
 
+    expectTypeOf(store.filteredBooks).toEqualTypeOf<Signal<Book[]>>();
+    expectTypeOf(store.setQuery).toEqualTypeOf<(query: string) => void>();
+    expectTypeOf(store.entities).toEqualTypeOf<Signal<Book[]>>();
+  });
+
+  it('Should handle generic', () => {
+    const BooksStore = signalStore(
+      withEntities<{ name: string }>(),
+      withBooksFilterGeneric((store) => {
+        // expectTypeOf(store.entities).toEqualTypeOf<Signal<Book[]>>();
+        return store.entities;
+      })
+    );
+
+    const store = new BooksStore();
     expectTypeOf(store.filteredBooks).toEqualTypeOf<Signal<Book[]>>();
     expectTypeOf(store.setQuery).toEqualTypeOf<(query: string) => void>();
     expectTypeOf(store.entities).toEqualTypeOf<Signal<Book[]>>();
