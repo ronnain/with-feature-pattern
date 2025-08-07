@@ -70,7 +70,6 @@ const r = new test4w();
 const rr = r.query;
 
 ///////////```
-// todo faire un test pour réusir à récupérer en une fois
 
 // 👇 test pour générer withBooksFilter4bis2 & fSelector2 depuis une fonction const {..} = myCystimFin
 
@@ -152,3 +151,48 @@ const myStore = new testPassingGenericType();
 
 const result = myStore.selectedEntity; // Signal<Book | null>
 //.    ^?
+
+// other test
+
+type GenericFeatureResult<Feature> = Feature extends SignalStoreFeature<
+  EmptyFeatureResult,
+  infer Output
+>
+  ? Output
+  : never;
+
+function toGenericFeature<
+  Input extends SignalStoreFeatureResult,
+  Result extends SignalStoreFeatureResult
+>(feature: SignalStoreFeature) {
+  return feature as unknown as SignalStoreFeature<Input, Result>;
+}
+
+function withSelectedEntity2<
+  Input extends SignalStoreFeatureResult,
+  Store extends StoreInput<Input>,
+  Entity
+>(entries: (store: Store) => Signal<EntityMap<Entity>>) {
+  const entityMap = entries({} as Store);
+  const feature = signalStoreFeature(
+    withState<{ selectedEntityId: string | null }>({
+      selectedEntityId: null,
+    }),
+    withComputed(({ selectedEntityId }) => ({
+      selectedEntity: computed(() => {
+        const selectedId = selectedEntityId();
+        return selectedId ? entityMap()[selectedId] : null;
+      }),
+    }))
+  );
+  //                      👇 pass explicitly the types parameters
+  return toGenericFeature<Input, GenericFeatureResult<typeof feature>>(feature);
+}
+
+const Test2FeatureWithGenericStore = signalStore(
+  withEntities<Book>(),
+  withSelectedEntity2((store) => store.entityMap)
+);
+
+const testFullR = new Test2FeatureWithGenericStore();
+testFullR.selectedEntity;
