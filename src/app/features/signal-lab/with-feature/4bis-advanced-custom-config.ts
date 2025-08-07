@@ -21,6 +21,7 @@ import {
   FeatureOutput,
   OneParams,
 } from './shared';
+import { EntityMap, withEntities } from '@ngrx/signals/entities';
 
 type FeatureOutputFromConfig<
   Input extends SignalStoreFeatureResult,
@@ -73,7 +74,7 @@ const rr = r.query;
 
 // 👇 test pour générer withBooksFilter4bis2 & fSelector2 depuis une fonction const {..} = myCystimFin
 
-function generateWithFeature<
+function createGenericFeature<
   Feature extends (data: any) => SignalStoreFeatureResult
 >(feature: Feature) {
   return {
@@ -96,7 +97,7 @@ function generateWithFeature<
   };
 }
 
-function genericSignalStoreFeature<Feature extends SignalStoreFeature>(
+function toSignalStoreFeatureResult<Feature extends SignalStoreFeature>(
   feature: Feature
 ) {
   type Re = typeof feature extends SignalStoreFeature<
@@ -108,36 +109,46 @@ function genericSignalStoreFeature<Feature extends SignalStoreFeature>(
   return feature as unknown as Re;
 }
 
-const { selector: testGS, withFeature: withFT } = generateWithFeature(
+const { selector: testGS, withFeature: withFT } = createGenericFeature(
   <CustomType>(customType: CustomType) =>
-    genericSignalStoreFeature(
-      signalStoreFeature(
-        withProps(() => ({ query: null as CustomType | null }))
-      )
+    toSignalStoreFeatureResult(
+      signalStoreFeature(withProps(() => ({ query: customType })))
     )
 );
-// const { selector: testGS, withFeature: withFT } = generateWithFeature(
-//   <CustomType>(customType: CustomType) => {
-//     const innerF = signalStoreFeature(
-//       withProps(() => ({ query: null as CustomType | null }))
-//     );
-//     type Re = typeof innerF extends SignalStoreFeature<
-//       EmptyFeatureResult,
-//       infer Output
-//     >
-//       ? Output
-//       : never;
-//     return innerF as unknown as Re;
-//   }
-// );
 const tg = testGS('nu');
 
 const test4w2 = signalStore(
   withProps(() => ({
-    customType1: '3',
+    customType1: '2',
     customType2: '3',
   })),
   withFT((store) => testGS(store.customType1))
 );
 const ree = new test4w2();
 const rre = ree.query;
+
+const { selector: selectedEntitySelector, withFeature: withSelectedEntity } =
+  createGenericFeature(<Entity>(entityMap: Signal<EntityMap<Entity>>) =>
+    toSignalStoreFeatureResult(
+      signalStoreFeature(
+        withState<{ selectedEntityId: string | null }>({
+          selectedEntityId: null,
+        }),
+        withComputed(({ selectedEntityId }) => ({
+          selectedEntity: computed(() => {
+            const selectedId = selectedEntityId();
+            return selectedId ? entityMap()[selectedId] : null;
+          }),
+        }))
+      )
+    )
+  );
+
+const testPassingGenericType = signalStore(
+  withEntities<Book>(),
+  withSelectedEntity((store) => selectedEntitySelector(store.entityMap))
+);
+const myStore = new testPassingGenericType();
+
+const result = myStore.selectedEntity; // Signal<Book | null>
+//.    ^?
